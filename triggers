@@ -1,0 +1,42 @@
+use almacen;
+DROP trigger if exists update_precio_Trigger;
+DELIMITER //
+CREATE trigger update_precio_Trigger
+BEFORE UPDATE ON Producto FOR EACH ROW
+BEGIN
+		IF OLD.Prod_valor_uni > NEW.Prod_valor_uni THEN
+	        INSERT INTO auditoria_modifica_precios VALUES('',OLD.Prod_cod,
+            OLD.Prod_valor_uni,NEW.Prod_valor_uni,NOW());
+        END IF;
+
+END
+//
+//
+
+use almacen;
+DROP trigger if exists insert_notification_Trigger;
+DELIMITER //
+CREATE trigger insert_notification_Trigger
+AFTER INSERT ON Coment_respuest FOR EACH ROW
+BEGIN
+	SELECT  Com_id,Com_id_client INTO @id_preg,@id_cedu
+    FROM Comentarios
+    WHERE Com_id = NEW.Comen_resp_id_preg;
+	INSERT INTO Notif_resp_usuario VALUES('',@id_cedu,
+	@id_preg,NEW.Coment_rest_id,1,NOW());
+
+END
+//
+
+
+use almacen;
+DROP trigger if exists update_pass_user_Trigger;
+DELIMITER //
+CREATE trigger update_pass_user_Trigger
+AFTER Update ON Formulario FOR EACH ROW
+BEGIN
+    IF NEW.Form_passw <> OLD.Form_passw THEN
+	    INSERT INTO auditoria_contra_usuario VALUES('',OLD.Form_ced,OLD.Form_passw,NOW());
+    END IF;
+END
+//
