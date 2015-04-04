@@ -1,0 +1,206 @@
+			Subconsultas........
+
+SELECT sum(salario),nomDepartamento
+FROM cargoxempleado c, departamentos d
+where c.codDepartamento = d.codDepartamento
+GROUP ; 
+
+SELECT nomPais, nomCiudad
+FROM paises p
+LEFT JOIN ciudades c ON c.codPais = p.codPais
+ORDER BY nomPais
+
+
+SELECT nomPais, COUNT( c.codPais ) 
+FROM ciudades c, paises p
+WHERE c.codPais = p.codPais
+GROUP BY 1 
+HAVING COUNT( c.codPais ) >5
+
+SELECT codCiudad, nomCiudad
+FROM ciudades
+WHERE codCiudad NOT 
+IN (SELECT codCiudad
+FROM localizaciones
+GROUP BY 1)
+
+------------------------------------------
+
+
+SELECT e.codEmpleado,e.Nombre,e.Apellido,MAX(salario)
+FROM empleados e, cargoxempleado c;
+
+
+
+--------------------------
+
+SELECT Nombre, Apellido, nomDepartamento, direccion, nomCiudad, nomRegion
+FROM cargoxempleado c
+INNER JOIN empleados e ON e.codEmpleado = c.codEmpleado
+INNER JOIN departamentos d ON d.codDepartamento = c.codDepartamento
+INNER JOIN localizaciones l ON l.codLocalizacion = d.codLocalizacion
+INNER JOIN ciudades ci ON ci.codCiudad = l.codCiudad
+INNER JOIN paises p ON p.codPais = ci.codPais
+INNER JOIN regiones r ON r.codRegion = p.codRegion
+
+
+--------------------------------------
+
+SELECT e.Nombre, e.Apellido
+FROM empleados e, cargoxempleado c
+WHERE 
+Nombre NOT like 'PEDRO' and
+Apellido NOT like 'PEREZ'
+AND e.codEmpleado = c.codEmpleado
+AND c.codDepartamento =
+ (SELECT d.codDepartamento
+FROM empleados e
+INNER JOIN cargoxempleado c ON c.codEmpleado = e.codEmpleado
+INNER JOIN departamentos d ON d.codDepartamento = c.codDepartamento
+WHERE e.Nombre like 'PEDRO' and e.Apellido Like 'PEREZ')
+
+
+
+SELECT nomDepartamento 
+FROM departamentos
+WHERE nomDepartamento IN
+(SELECT  nomDepartamento
+FROM cargoxempleado c, departamentos d
+WHERE c.codDepartamento = d.codDepartamento
+GROUP BY 2
+having count(c.codEmpleado) > 5);
+
+---------------------------------------------------------------------
+
+				Procedimientos
+
+
+
+6. Implemente una función que devuelva el total del salario de todos los
+departamentos. Hacerlo con cursor
+7. Implemente una función que devuelva los años que lleva un empleado
+trabajando en la empresa.
+
+CREATE PROCEDURE empleado_procedure(IN codigo INT, OUT promedio Decimal)
+   BEGIN
+	SELECT AVG(salario) INTO promedio
+	 FROM cargoxempleado
+	 WHERE codDepartamento in (SELECT codDepartamento
+	 FROM cargoxempleado
+	 WHERE codEmpleado = codigo);  	
+   END
+---------------------------------------------------------
+DELIMITER $$
+CREATE PROCEDURE fecha_empleado_procedure(IN fechauno DATE , IN fechados DATE,OUT cant INT)   (perfecto)
+BEGIN
+	SELECT COUNT(codEmpleado) INTO cant
+	FROM cargoxempleado
+	WHERE fecha_inicio = fechauno and
+	fecha_final = fechados;
+  end$$
+DELIMITER ;
+
+--------------------------------------------------------------
+5. Implemente un procedimiento que imprima los nombres de los empleados de los                         
+departamentos que tienen un total salario mayor a dos millones de pesos
+
+DELIMITER //
+CREATE PROCEDURE salarios_procedure()
+BEGIN
+
+	SELECT e.Nombre ,e.Apellido,d.nomDepartamento
+	FROM cargoxempleado ca
+	INNER JOIN empleados e ON ca.codEmpleado = e.codEmpleado
+    INNER JOIN departamentos d ON d.codDepartamento = ca.codDepartamento
+	WHERE (ca.salario+Comision) > 2000000;
+   
+END;
+//
+------------------------------------------
+
+Implemente una función que devuelva el total del salario de todos los        (perfecto)
+departamentos. Hacerlo con cursor
+
+DELIMITER //
+CREATE FUNCTION total_salario_funcion()
+RETURNS INT
+BEGIN
+	DECLARE salario_ INT DEFAULT 0;
+	DECLARE c1 CURSOR FOR SELECT
+			SUM(salario)
+			FROM cargoxempleado;
+	OPEN c1;
+	FETCH c1 INTO salario_;
+	CLOSE c1;
+	RETURN salario_;
+	
+END
+//	
+---------------------------------------------------
+
+Implemente una función que devuelva los años que lleva un empleado              (perfecto)
+trabajando en la empresa.
+use empresa;
+DROP FUNCTION IF EXISTS total_años_function;
+DELIMITER //
+
+CREATE FUNCTION total_años_function(codigo INT)
+RETURNS INT
+BEGIN
+    DECLARE años INT DEFAULT 0;
+	SET años = (SELECT (YEAR(fecha_final)-YEAR(fecha_inicio)) 
+	FROM cargoxempleado c
+	WHERE c.codEmpleado = codigo);
+	
+	RETURN años;
+END
+//	
+-----------------------------------------------------------
+Implemente un disparador que registre en una tabla auditoría los siguientes           (perfecto)
+datos:
+Codigo del empleado
+Nombre del empleado
+Apellido del empleado
+Salario anterior
+Salario nuevo
+Fecha transacción
+Usuario que modificó
+Cada vez que se modifique el salario de un empleado.
+
+DELIMITER //
+CREATE trigger register_auditoria_Trigger
+BEFORE UPDATE ON cargoxempleado FOR EACH ROW
+BEGIN
+        IF OLD.salario != NEW.salario THEN
+        SELECT Nombre ,Apellido INTO @nombre,@apellido
+        FROM empleados e
+        WHERE e.codEmpleado = OLD.codEmpleado;
+	        INSERT INTO auditoria VALUES(OLD.codEmpleado,@nombre,@apellido,OLD.salario,NEW.salario,CURDATE());
+        END IF;
+END
+//
+//
+						
+
+-----------------------------------------------------
+Implemente un disparador que fije la fecha final del empleado en la empresa
+igual a la fecha actual si cuando se inserta el registro la fecha es mayor a hoy o
+menor a la fecha de inicio
+
+
+
+DELIMITER //
+CREATE TRIGGER insert_fecha_fina_trigger
+BEFORE INSERT  ON cargoxempleado FOR EACH ROW
+BEGIN
+    IF NEW.fecha_final > CURDATE() THEN
+      SET new.fecha_final = CURDATE();
+    ELSEIF NEW.fecha_final < NEW.fecha_inicio THEN
+       SET new.fecha_final = CURDATE();
+    END IF;  
+END;
+
+
+
+
+
