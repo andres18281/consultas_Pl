@@ -1,0 +1,1608 @@
+<?php
+include_once('conexion.php');
+error_reporting(E_ALL);
+ini_set("display_errors", 1);
+	 class Consultas extends conexion {
+	
+		public function __construct(){			
+			parent::__construct();
+			parent::connect();
+		}
+		// funcion para loguear un usuario con usuario y contraseña
+		public function consulta_usuario($usuario,$paswd){
+			if($this->connect()){
+				$query = 'SELECT Form_ced, Form_nomb,Form_apell,Form_imail,Form_passw,Form_perfil
+							From Formulario
+							WHERE Form_imail ="'.$usuario.'"
+							AND Form_passw ="'.$paswd.'"
+							AND Form_active = 2';
+				if($result = $this->mysqli->query($query)){
+					if($result->num_rows > 0){	
+						$row = $result->fetch_object();
+						$array = array("cedula"=>$row->Form_ced,
+										"nombre"=>$row->Form_nomb,
+										"apellido"=>$row->Form_apell,
+										"mail"=>$row->Form_imail,
+										"pass"=>$row->Form_passw,
+										"perfil"=>$row->Form_perfil); 		        	
+			        return $array;
+			        $this->mysqli->free_result($result);
+			    	}
+				}else{
+					return null;
+				}
+			}else{
+				return null; 	
+			}					
+		}
+
+		public function consulta_directorio_creado($directorio){
+			if($this->connect()){
+				if(is_dir($directorio)){
+					return true;
+				}else{
+					return false;
+				}
+			}
+		}
+
+		// Consulta informacion de la persona menos su contraseña y usuario por medio de su documento de identidad
+		public function consulta_informacion_usuario($cedula){
+			if($this->connect()){
+				$query = 'SELECT Form_nomb,Form_apell,Form_imail,Form_passw
+							From Formulario
+							WHERE Form_ced ='.$cedula;
+				if($result = $this->mysqli->query($query)){
+					if($result->num_rows > 0){	
+						$row = $result->fetch_object();
+						$array = array(	"nombre"=>$row->Form_nomb,
+										"apellido"=>$row->Form_apell,
+										"email"=>$row->Form_imail,
+										"pass"=>$row->Form_passw); 
+			        return $array;
+			        $this->mysqli->free_result($result);
+			    	}
+				}else{
+					return null;
+				}
+			}else{
+				return null; 	
+			}				
+		}
+		// Consulta de usuarios para modificar o actualizar informacion del cliente
+		public function consulta_usuario_modificar($cedula){
+			if($this->connect()){
+				$query = 'SELECT Form_nomb,Form_apell,Form_tel,Form_dir,Form_imail,Ciud_cod_pais,Form_cod_ciud,Form_passw
+							From Formulario F, Ciudad C
+							WHERE Form_ced ='.$cedula.'
+							AND C.Ciud_cod = F.Form_cod_ciud';
+				if($result = $this->mysqli->query($query)){
+					if($result->num_rows > 0){	
+						$row = $result->fetch_object();
+						$array = array("nombre"=>$row->Form_nomb,
+									   "apellido"=>$row->Form_apell,
+									   "telefono"=>$row->Form_tel,
+									   "direccion"=>$row->Form_dir,
+									   "email"=>$row->Form_imail,
+									   "pais"=>$row->Ciud_cod_pais,
+									   "ciudad"=>$row->Form_cod_ciud,
+									   "pass"=>$row->Form_passw); 	    	
+			        return $array;
+			        $this->mysqli->free_result($result);
+			    	}  
+				}else{
+					return null;
+				}
+			}else{
+				return null; 	
+			}
+							
+		}
+		// Consulta de la existencia de un cliente por medio de correo
+		public function consulta_existencia_usuario($usuario){
+			if($this->connect()){
+				$query = 'SELECT Form_ced
+				 FROM Formulario WHERE Form_imail ='.$usuario;
+				$result = $this->mysqli->query($query);
+				if($result->num_rows > 0){
+					return true;
+				}else{
+					return false;
+				}
+			}
+		}
+
+		public function consulta_factura($cedula,$cancelado){
+			if($this->connect()){
+			     $query = 'SELECT Fact_cod,Fact_fecha,Fact_total,Fact_Cancelado
+							From Factura
+							WHERE Fact_cod_client = '.$cedula.'
+							AND Fact_Cancelado = '.$cancelado;
+				if($result = $this->mysqli->query($query)){
+					if($result->num_rows > 0){
+						while($row = $result->fetch_object()){
+							$array_fact = array("cod_factura" =>$row->Fact_cod,
+												"Fecha_factura"=>$row->Fact_fecha,
+												"total"=>$row->Fact_total,
+												"estado_fact"=>$row->Fact_Cancelado);
+							$array_uno[] = $array_fact;
+						}
+						return $array_uno;
+						$this->mysqli->free_result($result); 
+					}else{ return null;}
+				}else{ 
+					return null;
+				}
+				
+			}	
+		}
+
+		public function consulta_factura_codigo($codigo){
+			if($this->connect()){
+				$query = 'SELECT Fact_cod, Fact_fecha,Fact_total,Fact_cod_client,Form_nomb,Form_apell	
+						   FROM Factura F
+						   INNER JOIN Formulario Form ON Form.Form_ced = F.Fact_cod_client
+						   WHERE Fact_cod = '.$codigo; 
+				if($result = $this->mysqli->query($query)){
+					if($result->num_rows > 0){
+						$row = $result->fetch_object();
+						$array = array("codigo"=>$row->Fact_cod,
+									   "fecha"=>$row->Fact_fecha,
+									   "total"=>$row->Fact_total,
+									   "cedula"=>$row->Fact_cod_client,
+									   "nombre"=>$row->Form_nomb,
+									   "apellido"=>$row->Form_apell);
+						return $array;
+					}else{ return null;}
+				}else{ return null;}
+			}
+		}
+
+		public function consulta_orden_compra($codigo){
+			if($this->connect()){
+				$query = 'SELECT  Ord_Prod_cod, Prod_nomb, Ord_cant, Ord_cost,Ima_cod,Ima_dir
+						 FROM Orden_Compra O
+						 INNER JOIN Producto P on P.Prod_cod = O.Ord_Prod_cod
+                         INNER JOIN Factura F ON F.Fact_cod = O.Ord_Fact_cod	
+						 INNER JOIN Imagen I on I.Ima_nomb = P.Prod_cod
+						 WHERE Ord_Fact_cod ='.$codigo;
+				if($result = $this->mysqli->query($query)){
+					if($result->num_rows > 0){
+						while($row = $result->fetch_object()){
+							$array = array("codigo"=>$row->Ord_Prod_cod,
+										   "nombre"=>$row->Prod_nomb,
+										  "cantidad"=>$row->Ord_cant,
+										  "costo"=>$row->Ord_cost,
+										  "cod_imagen"=>$row->Ima_cod,
+										  "dir_imagen"=>$row->Ima_dir);
+							$array_[] = $array;
+						}
+						return $array_;
+					}else{ return null;}
+				}else{ return null;}
+			}	
+		}
+
+	public function consulta_pais(){
+		if($this->connect()){
+			$query = "SELECT Pais_cod,Pais_nomb FROM Pais";
+			$result = $this->mysqli->query($query);
+			while($row = $result->fetch_object()){
+				$array = array("codigo"=>$row->Pais_cod,
+								"nombre"=>$row->Pais_nomb);
+				$array_dos[] = $array;
+			}
+			return $array_dos;
+		}	
+			$this->mysqli->free_result($result); 
+	}
+
+	public function consulta_pais_codigo($codigo){
+		if($this->connect()){
+			$query = 'SELECT Pais_nomb 
+					  FROM Pais
+					  WHERE Pais_cod = '.$codigo;
+			$result = $this->mysqli->query($query);
+			 if($result->num_rows > 0){
+		    	$row = $result->fetch_object();
+				$array = array("nombre"=>$row->Pais_nomb);
+				return $array;
+				$this->mysqli->free_result($result);
+			}
+			
+		}	
+			 
+	}
+
+	public function consulta_ciudad($codigo){
+		if($this->connect()){
+			$query = "SELECT Ciud_cod,Ciud_nomb
+					  FROM Ciudad 
+					  WHERE Ciud_cod_pais =".$codigo;
+		    $result = $this->mysqli->query($query);
+		    if($result->num_rows > 0){
+		    	while($row = $result->fetch_object()){
+		    		$array = array("codigo"=>$row->Ciud_cod,
+		    				 	 "nombre"=>$row->Ciud_nomb);
+		    		$array_[] = $array;
+		    	}
+		    	return $array_;
+		    	$this->mysqli->free_result($result_);
+		    }else{
+		    	return null;
+		    }   
+		}
+	}
+
+	public function consulta_ciudad_codigo($codigo){
+		if($this->connect()){
+			$query = 'SELECT Ciud_nomb 
+					  FROM Ciudad
+					  WHERE Ciud_cod = '.$codigo;
+			$result = $this->mysqli->query($query);
+			 if($result->num_rows > 0){
+		    	$row = $result->fetch_object();
+				$array = array("nombre"=>$row->Ciud_nomb);
+				return $array;
+			}	
+		}	
+			
+	}
+
+	// verifica la existencia de una categoria para no halla duplicidad
+	public function verifica_categoria_principal($codigo,$nombre){
+		if($this->connect()){
+			$query = "SELECT Cat_cod,Cat_nomb
+					  FROM Categoria_principal 
+					  WHERE Cat_cod =".$codigo."
+					  AND Cat_nomb = ".$nombre;
+		    $result = $this->mysqli->query($query);
+		    if($result->num_rows > 0){
+		    	$row = $result->fetch_object();
+		    	$array = array("codigo"=>$row->Cat_cod,
+		    			 	 "nombre"=>$row->Cat_nomb);
+		    	return $array;
+		    	$this->mysqli->free_result($result);
+		    }else{
+		    	return null;
+		    }   
+		}
+	}
+
+	// devuelve un arreglo con los productos que pertenecen a una categoria segun el codigo
+	// del campo tipo de categoria principal
+	public function consulta_tipo_productos($busca){
+		if($this->connect()){
+			$query = "SELECT Tip_codigo,Tip_nombre FROM Tipo_producto
+			WHERE Tip_cod_cat = ".$busca;
+			$result = $this->mysqli->query($query);
+			if($result->num_rows > 0){
+				while($row = $result->fetch_object()){
+					$array = array("codigo"=>$row->Tip_codigo,
+								   "nombre"=>$row->Tip_nombre);
+					$array_[] = $array;
+				}
+				return $array_;
+				 
+			}else{
+				return null;
+			}
+			$this->mysqli->free_result($result);
+		}
+	}
+	
+
+	// Devuelve todas las subcategorias
+	public function consulta_de_todo_producto(){
+		if($this->connect()){
+			$query = "SELECT Tip_codigo,Tip_nombre FROM Tipo_producto";
+			$result = $this->mysqli->query($query);
+			if($result->num_rows > 0){
+				while($row = $result->fetch_object()){
+					$array = array("codigo"=>$row->Tip_codigo,
+								   "nombre"=>$row->Tip_nombre);
+					$array_[] = $array;
+				}
+				return $array_;
+				
+			}else{
+				return null;
+			}
+			$this->mysqli->free_result($result); 
+		}
+	}
+	// consulta por el id de un producto ----------------------------------------->
+	public function consulta_por_producto($codigo){
+		if($this->connect()){
+			$query = "SELECT Prod_cod 
+					  FROM Producto
+					  WHERE Prod_cod = ".$codigo;
+			$result = $this->mysqli->query($query);
+			if($result->num_rows > 0){
+				return true;
+			}else{
+				return false;
+			}
+				 
+		}else{
+				return null;
+		}
+		$this->mysqli->free_result($result);
+	}
+
+	// busqueda en el buscador principal
+	public function consulta_general_por_texto($array,$desde,$hasta){
+		//$a = implode('|', $array);
+		if($this->connect()){
+			$query ='SELECT Prod_cod
+					FROM Producto P
+					INNER JOIN Categoria CatFinal ON CatFinal.Cat_cod = P.Prod_cod_Tip_cat
+					INNER JOIN Tipo_producto TipProd ON TipProd.Tip_codigo = P.Prod_cod_tip_pro
+					INNER JOIN Bodega Bo ON (Bo.Bog_cod_prod= P.Prod_cod )AND (Bo.Bog_canti > 0)
+					WHERE CatFinal.Cat_nomb_cat LIKE '.$array.'
+					OR TipProd.Tip_nombre LIKE '.$array.'
+					OR P.Prod_nomb LIKE '.$array.'
+					LIMIT '.$desde.','.$hasta;
+
+			if($result = $this->mysqli->query($query)){
+				if($result->num_rows > 0){
+					while($row = $result->fetch_object()){
+						$array = array("codigo"=>$row->Prod_cod);
+						$arrayt[] = $array;
+					}
+					return $arrayt;
+				}else{
+					return null;
+					//return array("error"=>$query);
+				}
+			}else{
+				return null;
+			}
+			$this->mysqli->free_result($result);	
+		}else{  return null;}
+	}
+
+	// Devuelve la cantidad de productos a buscar con el fin de controlar el limit en mysql
+	public function consulta_general_por_texto_cantidad($array){
+		//$a = implode('|', $array);
+		if($this->connect()){
+			$query ='SELECT Count(*)
+					FROM Producto P
+					INNER JOIN Categoria CatFinal ON CatFinal.Cat_cod = P.Prod_cod_Tip_cat
+					INNER JOIN Bodega Bo ON Bo.Bog_cod_prod= P.Prod_cod
+					INNER JOIN Tipo_producto TipProd ON TipProd.Tip_codigo = P.Prod_cod_tip_pro
+					WHERE CatFinal.Cat_nomb_cat LIKE '.$array.'
+					OR TipProd.Tip_nombre LIKE '.$array.'
+					OR P.Prod_nomb LIKE '.$array.'
+					AND Bog_canti > 0';
+
+			if($result = $this->mysqli->query($query)){
+				if($result->num_rows > 0){
+					$row = $result->fetch_array(MYSQL_NUM);
+					$array = array("cantidad"=>$row[0]);
+					return $array;
+				}
+						
+			}else{
+				return null;
+			}
+			$this->mysqli->free_result($result);	
+		}else{  return null;}
+	}
+
+
+	public function consulta_categoria_principal(){
+		if($this->connect()){
+			$query = "SELECT Cat_cod,Cat_nomb FROM Categoria_principal";
+			$result = $this->mysqli->query($query);
+			//if($resul->num_rows > 0){
+				while($row = $result->fetch_object()){
+					$array = array("codigo"=>$row->Cat_cod,
+								   "nombre"=>$row->Cat_nomb);
+					$array_t[] = $array;
+				}
+				return $array_t;
+			$this->mysqli->free_result($result); 
+		}
+	}
+
+	public function valida_categoria($codigo,$nombre){
+		if($this->connect()){
+			$query = "SELECT *
+					 FROM Categoria
+					 WHERE Cat_nomb_cat = ".$nombre;
+			$result = $this->mysqli->query($query);
+			if($result->num_rows > 0){
+				return True;
+			}else{
+				return False;
+			}
+			$this->mysqli->free_result($result); 
+		}
+	}
+
+	public function validacion_tipo_productos($codigo,$nombre){
+		if($this->connect()){
+			$query = "SELECT *
+					  FROM Tipo_producto
+					  WHERE Tip_codigo =".$codigo."
+					  AND Tip_nombre = ".$nombre;
+			$result = $this->mysqli->query($query);
+			if($result->num_rows > 0){
+				return True;
+			}else{
+				return False;
+			}
+			$this->mysqli->free_result($result); 
+		}
+	}
+	// verifica que en una categoria exista ya productos para poder visualizar las categorias que tienen productos
+	//almacenados, si una categoria no tiene productos no se muestran.
+	public function verifica_producto_por_existencia($tipo_producto){
+		if($this->connect()){
+			$query = "SELECT  Count(*)
+					  FROM Producto P
+					  INNER JOIN Bodega Bo ON Bo.Bog_cod_prod= P.Prod_cod
+					  WHERE Prod_cod_tip_pro =".$tipo_producto.'
+					  AND Bog_canti > 0';
+			$result = $this->mysqli->query($query);
+			if($result->num_rows > 0){
+				$row = $result->fetch_array(MYSQL_NUM);
+					$array = array("cantidad"=>$row[0]);
+				return $array;
+			}else{
+				return null;
+			}
+			$this->mysqli->free_result($result); 
+		}
+	}
+
+	// verifica y devuelve la suma de la cantidad de productos que estan almacenados por su categoria
+	public function verifica_producto_por_existencia_categoria($tipo_producto){
+		if($this->connect()){
+			$query = "SELECT  Count(*)
+					  FROM Producto P
+					  INNER JOIN Bodega Bo ON Bo.Bog_cod_prod= P.Prod_cod
+					  WHERE Prod_cod_Tip_cat =".$tipo_producto.'
+					  AND Bog_canti > 0';
+			$result = $this->mysqli->query($query);
+			if($result->num_rows > 0){
+				$row = $result->fetch_array(MYSQL_NUM);
+		    	$array = array("cantidad"=>$row[0]);
+				return $array;
+			}else{
+				return null;
+			}
+			$this->mysqli->free_result($result); 
+		}
+	}
+	
+// verifica y devuelve la cantidad de productos por categoria principal
+	public function verifica_producto_por_existencia_principal($tipo_producto){
+		if($this->connect()){
+			$query = 'SELECT COUNT( P.Prod_cod ) 
+			  		  FROM Producto P
+			  		  INNER JOIN Tipo_producto TP ON TP.Tip_codigo = P.Prod_cod_tip_pro
+			          INNER JOIN Categoria_principal CP ON CP.Cat_cod = TP.Tip_cod_cat
+			          WHERE CP.Cat_cod ='.$tipo_producto;
+			$result = $this->mysqli->query($query);
+			if($result->num_rows > 0){
+				$row = $result->fetch_array(MYSQL_NUM);
+		    	$array = array("cantidad"=>$row[0]);
+				return $array;
+			}else{
+				return null;
+			}
+			$this->mysqli->free_result($result); 
+		}
+	}
+	
+
+
+	public function consulta_categoria_principal_por_codigo($codigo){ 
+		if($this->connect()){
+			$query = "SELECT   Cat_nomb FROM Categoria_principal
+					  WHERE Cat_cod = ".$codigo;
+			$result = $this->mysqli->query($query);
+			if($result->num_rows > 0){
+				$row = $result->fetch_object();
+				$array = array("nombre"=>$row->Cat_nomb);
+				return $array;
+			}else{
+				return null;
+			}
+			$this->mysqli->free_result($result); 
+		}
+	}
+
+
+
+
+	// Categoria final, tercer nivel 
+	public function consulta_categoria($codigo){
+		if($this->connect()){
+			$query = "SELECT  Cat_cod ,Cat_nomb_cat FROM Categoria
+					  WHERE Cat_tip_product = ".$codigo;
+			$result = $this->mysqli->query($query);
+			if($result->num_rows > 0){
+				while($row = $result->fetch_object()){
+					$array = array("codigo"=>$row->Cat_cod,
+								   "nombre"=>$row->Cat_nomb_cat);
+					$array_cons[] = $array;
+				}
+				return $array_cons;
+			
+			}else{
+				return null;
+			}
+			$this->mysqli->free_result($result); 
+		}
+	}
+
+	// devuelve la cantidad de registros de acuerdo a la marca y la categoria tercer nivel
+	public function cantidad_por_producto_marca($codigo,$marca){
+		if($this->connect()){
+			$query = 'SELECT COUNT(*)
+					  FROM Producto P
+					  Inner JOIN Imagen Img On Img.Ima_nomb = P.Prod_cod
+					  INNER JOIN Bodega Bo ON Bo.Bog_cod_prod= P.Prod_cod
+					  INNER JOIN Proveedor Pro ON (Pro.Prov_cod = P.Prod_Proveedor) AND (P.Prod_Proveedor = '.$marca.') 
+					  LEFT JOIN auditoria_modifica_precios audi ON audi.cod_producto = P.Prod_cod  
+					  WHERE Prod_cod_Tip_cat = '.$codigo.'
+					  AND Bog_canti > 0';
+					   
+			$result = $this->mysqli->query($query);
+			if($result->num_rows > 0){
+				$row = $result->fetch_array(MYSQL_NUM);
+					$array = array("cantidad"=>$row[0]);
+				return $array;
+			}else{
+				return null;
+			}
+				$this->mysqli->free_result($result); 
+		}
+	}
+
+
+
+	// busca por codigo y marca de producto
+	public function consulta_producto_marca($codigo,$marca,$desde,$hasta){
+		if($this->connect()){
+			$query = 'SELECT Prod_cod,Prod_nomb,Prod_valor_uni,Ima_dir,	Ima_cod	,Prov_nomb,Bog_canti,precio_old,min(audi.fecha)
+					  FROM Producto P
+					  Inner JOIN Imagen Img On Img.Ima_nomb = P.Prod_cod
+					  INNER JOIN Bodega Bo ON Bo.Bog_cod_prod= P.Prod_cod
+					  INNER JOIN Proveedor Pro ON (Pro.Prov_cod = P.Prod_Proveedor) AND (P.Prod_Proveedor = '.$marca.') 
+					  LEFT JOIN auditoria_modifica_precios audi ON audi.cod_producto = P.Prod_cod  
+					  WHERE Prod_cod_Tip_cat = '.$codigo.'
+					  AND Bog_canti > 0
+					  GROUP BY 1
+					  LIMIT '.$desde.','.$hasta;	   
+			$result = $this->mysqli->query($query);
+			if($result->num_rows > 0){
+				while($row = $result->fetch_object()){
+					$array = array("codigo"=>$row->Prod_cod,
+								   "nombre"=>$row->Prod_nomb,
+								   "costo"=>$row->Prod_valor_uni,
+								   "imagen_dir"=>$row->Ima_dir,
+								   "imagen_nomb"=>$row->Ima_cod	,
+								   "proveedor"=>$row->Prov_nomb,
+								   "cantidad"=>$row->Bog_canti,
+								   "descuento"=>$row->precio_old);
+					$array_[] = $array;
+				}
+				return $array_;
+			}else{
+				return null;
+			}
+				$this->mysqli->free_result($result); 
+		}
+	}
+
+	public function cantidad_producto_tipo_persona($codigo,$tipo_person){
+		if($this->connect()){
+			$query = 'SELECT Count(*)
+					  FROM Producto P
+					  Inner JOIN Imagen Img On Img.Ima_nomb = P.Prod_cod
+					  INNER JOIN Bodega Bo ON Bo.Bog_cod_prod= P.Prod_cod
+					  INNER JOIN Proveedor Pro ON Pro.Prov_cod = P.Prod_Proveedor 
+					  LEFT JOIN auditoria_modifica_precios audi ON audi.cod_producto = P.Prod_cod  
+					  WHERE Prod_cod_Tip_cat = '.$codigo.'
+					  AND Bog_canti > 0
+					  AND Prod_tip_person = "'.$tipo_person.'"';	   
+			$result = $this->mysqli->query($query);
+			if($result->num_rows > 0){
+				$row = $result->fetch_array(MYSQL_NUM);
+			    $array = array("cantidad"=>$row[0]);
+				return $array;
+				$this->mysqli->free_result($result); 				 
+			}else{
+				return null;
+			}		
+		}
+	}
+
+
+	public function consulta_producto_tipo_persona($codigo,$tipo_person,$desde,$hasta){
+		if($this->connect()){
+			$query = 'SELECT Prod_cod,Prod_nomb,Prod_valor_uni,Ima_dir,	Ima_cod	,Prov_nomb,Bog_canti,precio_old,min(audi.fecha)
+					  FROM Producto P
+					  Inner JOIN Imagen Img On Img.Ima_nomb = P.Prod_cod
+					  INNER JOIN Bodega Bo ON Bo.Bog_cod_prod= P.Prod_cod
+					  INNER JOIN Proveedor Pro ON Pro.Prov_cod = P.Prod_Proveedor 
+					  LEFT JOIN auditoria_modifica_precios audi ON audi.cod_producto = P.Prod_cod  
+					  WHERE Prod_cod_Tip_cat = '.$codigo.'
+					  AND Bog_canti > 0
+					  AND Prod_tip_person = "'.$tipo_person.'"
+					  GROUP BY 1
+					  LIMIT '.$desde.','.$hasta;   
+			$result = $this->mysqli->query($query);
+			if($result->num_rows > 0){
+				while($row = $result->fetch_object()){
+					$array = array("codigo"=>$row->Prod_cod,
+								   "nombre"=>$row->Prod_nomb,
+								   "costo"=>$row->Prod_valor_uni,
+								   "imagen_dir"=>$row->Ima_dir,
+								   "imagen_nomb"=>$row->Ima_cod	,
+								   "proveedor"=>$row->Prov_nomb,
+								   "cantidad"=>$row->Bog_canti,
+								   "descuento"=>$row->precio_old);
+					$array_[] = $array;
+				}
+				return $array_;
+			
+			}else{
+				return null;
+			}
+				$this->mysqli->free_result($result); 
+		}
+	}
+	public function cantidad_producto_talla_num($codigo,$talla_num){
+		if($this->connect()){
+			$query = 'SELECT Count(*)
+					  FROM Producto P
+					  Inner JOIN Imagen Img On Img.Ima_nomb = P.Prod_cod
+					  INNER JOIN Bodega Bo ON Bo.Bog_cod_prod= P.Prod_cod
+					  INNER JOIN Proveedor Pro ON Pro.Prov_cod = P.Prod_Proveedor
+					  INNER JOIN Tallas T ON T.Tall_Cod = P.Prod_cod AND T.Tall_numeric = '.$talla_num.' 
+					  LEFT JOIN auditoria_modifica_precios audi ON audi.cod_producto = P.Prod_cod  
+					  WHERE Prod_cod_Tip_cat = '.$codigo.'
+					  AND Bog_canti > 0';		   
+			$result = $this->mysqli->query($query);
+			if($result->num_rows > 0){
+				$row = $result->fetch_array(MYSQL_NUM);
+				$array = array("cantidad"=>$row[0]);
+					return $array;
+			}else{
+				return null;
+			}
+				$this->mysqli->free_result($result); 
+		}
+	}
+
+	public function consulta_producto_talla_num($codigo,$talla_num,$desde,$hasta){
+		if($this->connect()){
+			$query = 'SELECT Prod_cod,Prod_nomb,Prod_valor_uni,Ima_dir,	Ima_cod	,Prov_nomb,Bog_canti,precio_old,min(audi.fecha)
+					  FROM Producto P
+					  Inner JOIN Imagen Img On Img.Ima_nomb = P.Prod_cod
+					  INNER JOIN Bodega Bo ON Bo.Bog_cod_prod= P.Prod_cod
+					  INNER JOIN Proveedor Pro ON Pro.Prov_cod = P.Prod_Proveedor
+					  INNER JOIN Tallas T ON T.Tall_Cod = P.Prod_cod AND T.Tall_numeric = '.$talla_num.' 
+					  LEFT JOIN auditoria_modifica_precios audi ON audi.cod_producto = P.Prod_cod  
+					  WHERE Prod_cod_Tip_cat = '.$codigo.'
+					  AND Bog_canti > 0
+					  LIMIT '.$desde.','.$hasta;		   
+			$result = $this->mysqli->query($query);
+			if($result->num_rows > 0){
+				while($row = $result->fetch_object()){
+					$array = array("codigo"=>$row->Prod_cod,
+								   "nombre"=>$row->Prod_nomb,
+								   "costo"=>$row->Prod_valor_uni,
+								   "imagen_dir"=>$row->Ima_dir,
+								   "imagen_nomb"=>$row->Ima_cod	,
+								   "proveedor"=>$row->Prov_nomb,
+								   "cantidad"=>$row->Bog_canti,
+								   "descuento"=>$row->precio_old);
+					$array_[] = $array;
+				}
+				return $array_;
+			}else{
+				return null;
+			}
+				$this->mysqli->free_result($result); 
+		}
+	}
+
+	public function cantidad_producto_talla_let($codigo,$talla_let){
+		if($this->connect()){
+			$query = 'SELECT Count(*)
+					  FROM Producto P
+					  Inner JOIN Imagen Img On Img.Ima_nomb = P.Prod_cod
+					  INNER JOIN Bodega Bo ON Bo.Bog_cod_prod= P.Prod_cod
+					  INNER JOIN Proveedor Pro ON Pro.Prov_cod = P.Prod_Proveedor
+					  INNER JOIN Tallas T ON T.Tall_Cod = P.Prod_cod AND T.Tall_letras = "'.$talla_let.'" 
+					  LEFT JOIN auditoria_modifica_precios audi ON audi.cod_producto = P.Prod_cod  
+					  WHERE Prod_cod_Tip_cat = '.$codigo.'
+					  AND Bog_canti > 0';		   
+			$result = $this->mysqli->query($query);
+			if($result->num_rows > 0){
+				$row = $result->fetch_array(MYSQL_NUM);
+					$array = array("cantidad"=>$row[0]);
+					return $array;
+			}else{
+				$array = array("error"=>$this->mysqli->errno);
+					return $array;
+			}
+				$this->mysqli->free_result($result); 
+		}
+	}
+
+
+
+	public function consulta_producto_talla_let($codigo,$talla_let,$desde,$hasta){
+		if($this->connect()){
+			$query = 'SELECT Prod_cod,Prod_nomb,Prod_valor_uni,Ima_dir,	Ima_cod	,Prov_nomb,Bog_canti,precio_old,min(audi.fecha)
+					  FROM Producto P
+					  Inner JOIN Imagen Img On Img.Ima_nomb = P.Prod_cod
+					  INNER JOIN Bodega Bo ON Bo.Bog_cod_prod= P.Prod_cod
+					  INNER JOIN Proveedor Pro ON Pro.Prov_cod = P.Prod_Proveedor
+					  INNER JOIN Tallas T ON T.Tall_Cod = P.Prod_cod AND T.Tall_letras = "'.$talla_let.'" 
+					  LEFT JOIN auditoria_modifica_precios audi ON audi.cod_producto = P.Prod_cod  
+					  WHERE Prod_cod_Tip_cat = '.$codigo.'
+					  AND Bog_canti > 0
+					  GROUP BY 1
+					  LIMIT '.$desde.','.$hasta;		   
+			$result = $this->mysqli->query($query);
+			if($result->num_rows > 0){
+				while($row = $result->fetch_object()){
+					$array = array("codigo"=>$row->Prod_cod,
+								   "nombre"=>$row->Prod_nomb,
+								   "costo"=>$row->Prod_valor_uni,
+								   "imagen_dir"=>$row->Ima_dir,
+								   "imagen_nomb"=>$row->Ima_cod	,
+								   "proveedor"=>$row->Prov_nomb,
+								   "cantidad"=>$row->Bog_canti,
+								   "descuento"=>$row->precio_old);
+					$array_[] = $array;
+				}
+				return $array_;
+			}else{
+				return null;
+			}
+				$this->mysqli->free_result($result); 
+		}
+	}
+
+	public function valida_proveedor($codigo){
+		if($this->connect()){
+			$query = "SELECT  Prov_cod ,Prov_nomb FROM Proveedor
+			WHERE Prov_cod = ".$codigo;
+			$result = $this->mysqli->query($query);
+			if($result->num_rows > 0){
+				return true;
+			}else{
+				return false;
+			}
+			$this->mysqli->free_result($result); 
+		}
+	}
+
+	public function valida_CatalogoProveedor($tip_pro,$subcategoria,$cod_prove){
+		if($this->connect()){
+			$query = "SELECT * FROM CatalogoProveedor
+			WHERE Cata_tip_pro =.'$tip_pro'. 
+			AND Cata_cod_cat =.'$subcategoria'
+			AND Cata_cod_prove = ".$cod_prove;
+			$result = $this->mysqli->query($query);
+			if($result->num_rows > 0){
+				return true;
+			}else{
+				return false;
+			}
+			$this->mysqli->free_result($result); 
+		}
+	}
+	// hace una busqueda de proveedores sobre la categoria que se busca
+    public function consulta_proveedores_codigo_categoria($codigo){
+    	if($this->connect()){
+    		$query = 'SELECT Prov_cod, Prov_nomb
+					FROM Proveedor Prov
+					INNER JOIN Producto Prod ON Prod.Prod_Proveedor = Prov.Prov_cod
+					INNER JOIN Categoria C ON C.Cat_cod = Prod.Prod_cod_Tip_cat
+					WHERE C.Cat_cod ='.$codigo.'
+					GROUP BY 1';
+			$result = $this->mysqli->query($query);
+			while($row = $result->fetch_object()){
+				$array = array("codigo"=>$row->Prov_cod,
+							   "nombre"=>$row->Prov_nomb);
+				$array_[] = $array;
+			}
+			return $array_;		
+			$this->mysqli->free_result($result); 
+    	}
+    }
+
+    public function consulta_tipo_personas_codigo_categoria($codigo){
+    	if($this->connect()){
+    		$query = 'SELECT Prod_tip_person
+					  FROM Producto P
+					  INNER JOIN Categoria C ON C.Cat_cod = P.Prod_cod_Tip_cat
+					  WHERE C.Cat_cod ='.$codigo.'
+					  AND Prod_tip_person != "No aplica"
+					  GROUP BY 1';
+			$result = $this->mysqli->query($query);
+			if($result->num_rows > 0){
+				while($row = $result->fetch_object()){
+					$array = array("tipo"=>$row->Prod_tip_person);
+					$array_[] = $array;
+				}
+				return $array_;
+			}else{
+				return null;
+			}		
+			$this->mysqli->free_result($result); 
+    	}
+    }
+
+    public function consulta_talla_codigo_numeric_categoria($codigo){
+    	if($this->connect()){
+    		$query = 'SELECT Tall_numeric 
+					  FROM Tallas T
+					  INNER JOIN Producto P ON P.Prod_cod = T.Tall_Cod
+					  INNER JOIN Categoria C ON C.Cat_cod = P.Prod_cod_Tip_cat
+					  WHERE C.Cat_cod ='.$codigo.'
+					  AND Tall_numeric IS NOT NULL';
+			$result = $this->mysqli->query($query);
+			if($result->num_rows > 0){
+				while($row = $result->fetch_object()){
+					$array = array("talla_num"=>$row->Tall_numeric);
+					$array_[] = $array;
+				}
+				return $array_;
+			}else{
+				return null;
+			}		
+			$this->mysqli->free_result($result); 
+    	}
+    }
+    public function consulta_talla_codigo_letras_categoria($codigo){
+    	if($this->connect()){
+    		$query = 'SELECT Tall_letras 
+					  FROM Tallas T
+					  INNER JOIN Producto P ON P.Prod_cod = T.Tall_Cod
+					  INNER JOIN Categoria C ON C.Cat_cod = P.Prod_cod_Tip_cat
+					  WHERE C.Cat_cod ='.$codigo.'
+					  AND Tall_letras IS NOT NULL 
+					  GROUP BY 1 ';
+			$result = $this->mysqli->query($query);
+			if($result->num_rows > 0){
+				while($row = $result->fetch_object()){
+					$array = array("talla_let"=>$row->Tall_letras);
+					$array_[] = $array;
+				}
+				return $array_;
+			}else{
+				return null;
+			}		
+			$this->mysqli->free_result($result); 
+    	}
+    }
+
+
+	public function consulta_proveedores(){
+		if($this->connect()){
+			$query = "SELECT  Prov_cod ,Prov_nomb FROM Proveedor";
+			$result = $this->mysqli->query($query);
+			//if($resul->num_rows > 0){
+				while($row = $result->fetch_object()){
+					$array = array("codigo"=>$row->Prov_cod,
+								   "nombre"=>$row->Prov_nomb);
+					$array_[] = $array;
+				}
+				return $array_;
+			$this->mysqli->free_result($result); 
+		}
+	}
+	// consulta de producto por tipo de categoria, lanza la cantidad de productos dependiendo de la clasificacion
+	public function consulta_visualizar_productos_categoria($codigo,$desde,$hasta){
+		if($this->connect()){
+			$query = "SELECT Prod_cod,Prod_nomb,Prod_valor_uni,Ima_dir,	Ima_cod	,Prov_nomb,Bog_canti,precio_old,min(audi.fecha)
+					  FROM Producto P
+					  Inner JOIN Imagen Img On Img.Ima_nomb = P.Prod_cod
+					  INNER JOIN Bodega Bo ON Bo.Bog_cod_prod= P.Prod_cod
+					  INNER JOIN Proveedor Pro ON Pro.Prov_cod = P.Prod_Proveedor
+					  LEFT JOIN auditoria_modifica_precios audi ON audi.cod_producto = P.Prod_cod  
+					  WHERE Prod_cod_Tip_cat = ".$codigo.'
+					  AND Bog_canti > 0
+					  GROUP BY 1
+					  LIMIT '.$desde.','.$hasta;
+					   
+			$result = $this->mysqli->query($query);
+			if($result->num_rows > 0){
+				while($row = $result->fetch_object()){
+					$array = array("codigo"=>$row->Prod_cod,
+								   "nombre"=>$row->Prod_nomb,
+								   "costo"=>$row->Prod_valor_uni,
+								   "imagen_dir"=>$row->Ima_dir,
+								   "imagen_nomb"=>$row->Ima_cod	,
+								   "proveedor"=>$row->Prov_nomb,
+								   "cantidad"=>$row->Bog_canti,
+								   "descuento"=>$row->precio_old);
+					$array_[] = $array;
+				}
+				return $array_;
+			
+			}else{
+				return null;
+			}
+				$this->mysqli->free_result($result); 
+		}
+	}
+
+	// Consulta productos sin una busqueda de categoria
+	public function consulta_visualizar_productos(){
+		if($this->connect()){
+			$query = "SELECT Prod_cod,Prod_nomb,Prod_valor_uni,Ima_dir, Prov_nomb,Bog_canti,precio_old,min(audi.fecha)
+					  FROM Producto P
+					  Inner JOIN Imagen Img On Img.Ima_nomb = P.Prod_cod
+					  INNER JOIN Bodega Bo ON Bo.Bog_cod_prod= P.Prod_cod
+					  INNER JOIN Proveedor Pro ON Pro.Prov_cod = P.Prod_Proveedor
+					  LEFT JOIN auditoria_modifica_precios audi ON audi.cod_producto = P.Prod_cod 
+					  WHERE Bog_canti > 0
+					  GROUP BY Prod_cod";
+			$result = $this->mysqli->query($query);
+			if($result->num_rows > 0){
+				while($row = $result->fetch_object()){
+					$array = array("codigo"=>$row->Prod_cod,
+								   "nombre"=>$row->Prod_nomb,
+								   "costo"=>$row->Prod_valor_uni,
+								   "imagen"=>$row->Ima_dir,
+								   "proveedor"=>$row->Prov_nomb,
+								   "cantidad"=>$row->Bog_canti,
+								   "descuento"=>$row->precio_old);
+					$array_[] = $array;
+				}
+				return $array_;
+			
+			}else{
+				return null;
+			}
+				$this->mysqli->free_result($result); 
+		}
+	}
+
+	public function consulta_imagenes($codigo){
+		if($this->connect()){
+			$query = 'SELECT Ima_cod
+					FROM Imagen 
+					WHERE Ima_nomb = '.$codigo;
+			$result = $this->mysqli->query($query);
+			if($result->num_rows > 0){
+				while($row = $result->fetch_object()){
+					$array = array("codigo"=>$row->Ima_cod);
+					$arrays_[] = $array;
+				}
+				return $arrays_;
+			}else{
+				return null;
+			}
+		}else{ return null;}
+	}
+
+	public function consultar_descripcion_producto($codigo){
+		if($this->connect()){
+			$query = "SELECT Desc_descripcion 
+					FROM Descripcion
+					WHERE Desc_cod = ".$codigo;
+			$result = $this->mysqli->query($query);
+			if($result->num_rows > 0){
+				$row = $result->fetch_object();
+				$array = array("descripcion"=>$row->Desc_descripcion);
+				return $array;
+
+			}
+			$this->mysqli->free_result($result);
+		}else{return null;}
+	}
+
+// Consulta producto por codigo 
+	public function consulta_visualizar_productos_por_codigo($codigo){
+		if($this->connect()){
+			$query = 'SELECT Prod_cod,Prod_nomb,Prod_valor_uni,Ima_dir,	Ima_cod	, Prov_nomb,Bog_canti,Prod_Desc_cod,precio_old,min(audi.fecha)
+					  FROM Producto P
+					  Inner JOIN Imagen Img On Img.Ima_nomb = P.Prod_cod
+					  INNER JOIN Bodega Bo ON Bo.Bog_cod_prod= P.Prod_cod
+					  INNER JOIN Proveedor Pro ON Pro.Prov_cod = P.Prod_Proveedor
+					  LEFT JOIN auditoria_modifica_precios audi ON audi.cod_producto = P.Prod_cod 
+					  WHERE Prod_cod = '.$codigo.' 
+					  AND Bog_canti > 0
+					  GROUP BY 1 ';
+					  
+			$result = $this->mysqli->query($query);
+			if($result->num_rows > 0){
+				$row = $result->fetch_object();
+					$array = array("codigo"=>$row->Prod_cod,
+								   "nombre"=>$row->Prod_nomb,
+								   "costo"=>$row->Prod_valor_uni,
+								   "imagen_dir"=>$row->Ima_dir,
+								   "imagen_nomb"=>$row->Ima_cod,
+								   "proveedor"=>$row->Prov_nomb,
+								   "cantidad"=>$row->Bog_canti,
+								   "descripcion"=>$row->Prod_Desc_cod,
+								   "descuento"=>$row->precio_old);
+					return $array;
+			}else{
+				return null;
+			}
+				$this->mysqli->free_result($result); 
+		}
+	}
+	//////////// consult de cantidad de mercancia almacenada
+		public function consulta_almacen($codigo){
+			if($this->connect()){
+				$query ="SELECT Bog_cod_prod, Bog_canti
+						FROM Bodega
+						WHERE Bog_cod_prod = ".$codigo;
+				$result = $this->mysqli->query($query);
+				if($result->num_rows > 0){
+				   $row = $result->fetch_object();
+				    	$array = array("codigo_pro"=>$row->Bog_cod_prod,
+				    				   "cantidad"=>$row->Bog_canti);   
+				 		return $array;
+				}else{
+					return null;
+				}
+				$this->mysqli->free_result($result); 
+			}
+		}
+
+	public function consulta_ventas_hechas($fecha_uno,$fecha_dos){
+		if($this->connect()){
+			$query = 'SELECT SUM(Fact_total)
+					  FROM Factura
+					  WHERE Fact_fecha between ('.$fecha_uno.') AND ('.$fecha_dos.')
+					  AND Fact_Cancelado = 1';
+		  	$result = $this->mysqli->query($query);
+			if($result->num_rows > 0){
+				$row = $result->fetch_array(MYSQL_NUM);
+					$array = array("Cuenta"=>$row[0]);
+				return $array;
+			}else{
+				return null;
+			}
+			$this->mysqli->free_result($result); 
+		}
+	}
+
+	public function consulta_cantidad_ventas_mensual($mes,$anual){
+		if($this->connect()){
+			$query = 'SELECT COUNT(*)
+					  FROM Factura
+					  WHERE Fact_fecha LIKE "__%'.$mes.'____"
+					  AND Fact_fecha LIKE "____'.$anual.'"
+					  AND Fact_Cancelado = 1';
+		  	$result = $this->mysqli->query($query);
+			if($result->num_rows > 0){
+				$row = $result->fetch_array(MYSQL_NUM);
+					$array = array("cantidad"=>$row[0]);
+				return $array;
+			}else{
+				return null;
+			}
+			$this->mysqli->free_result($result); 
+		}
+	}
+
+
+
+
+
+	// facturacion en ventas por mes
+	public function consulta_ventas_mensual($mes,$anual){
+		if($this->connect()){
+			$query = 'SELECT SUM(Fact_total)
+					  FROM Factura
+					  WHERE Fact_fecha LIKE "__%'.$mes.'____"
+					  AND Fact_fecha LIKE "____'.$anual.'"
+					  AND Fact_Cancelado = 1';
+		  	$result = $this->mysqli->query($query);
+			if($result->num_rows > 0){
+				$row = $result->fetch_array(MYSQL_NUM);
+					$array = array("cantidad"=>$row[0]);
+				return $array;
+			}else{
+				return array("cantidad"=>0);
+			}
+			$this->mysqli->free_result($result); 
+		}
+	}
+	// Facturacion en venta anual
+	public function consulta_ventas_anual($fecha){
+		if($this->connect()){
+			$query = 'SELECT SUM(Fact_total)
+					  FROM Factura
+					  WHERE Fact_fecha LIKE "____'.$fecha.'" 
+					  AND Fact_Cancelado = 1';
+		  	$result = $this->mysqli->query($query); 
+			if($result->num_rows > 0){
+				$row = $result->fetch_array(MYSQL_NUM);
+					$array = array("cantidad"=>$row[0]);
+				return $array;
+			}else{
+				return null;
+			}
+			$this->mysqli->free_result($result); 
+		}
+	}
+
+	public function consulta_fechas(){
+		if($this->connect()){
+			$query = 'SELECT SUBSTRING(Fact_fecha,3)
+					  FROM Factura 
+					  WHERE Fact_Cancelado = 1
+					  ORDER BY Fact_fecha
+					  DESC';
+		  	$result = $this->mysqli->query($query);
+			if($result->num_rows > 0){
+				while($row = $result->fetch_object()){
+					$array = array("fecha"=>$row->Fact_fecha);
+					$array_[] = $array;
+				}
+				return $array_;
+			}else{
+				return null;
+			}
+			
+			$this->mysqli->free_result($result); 
+		}
+	}
+	public function consulta_fechas_full(){
+		if($this->connect()){
+			$query = 'SELECT Fact_fecha
+					  FROM Factura 
+					  GROUP BY 1
+					  ORDER BY Fact_fecha
+					  DESC';
+		  	$result = $this->mysqli->query($query);
+			if($result->num_rows > 0){
+				while($row = $result->fetch_object()){
+					$array = array("fecha"=>$row->Fact_fecha);
+					$array_[] = $array;
+				}
+				return $array_;
+			}else{
+				return null;
+			}
+			
+			$this->mysqli->free_result($result); 
+		}
+	}
+
+	public function consulta_inventarios(){
+		if($this->connect()){
+			$query = 'SELECT Prod_cod,Prod_nomb,Bog_canti,Cat_nomb 
+					  FROM Producto P
+					  INNER JOIN Bodega Bog ON Bog.Bog_cod_prod = P.Prod_cod
+					  INNER JOIN Categoria CT ON CT.Cat_cod  = P.Prod_cod_Tip_cat
+					  INNER JOIN Tipo_producto TP ON TP.Tip_codigo = CT.Cat_tip_product
+					  INNER JOIN Categoria_principal CP ON CP.Cat_cod = TP.Tip_cod_cat
+					  WHERE Bog.Bog_canti > 0
+					  ORDER BY Prod_cod_Tip_cat'; 
+			$result = $this->mysqli->query($query);
+			if($result->num_rows > 0){
+				while($row = $result->fetch_object()){
+					$array = array("codigo"=>$row->Prod_cod,
+								   "nombre"=>$row->Prod_nomb,
+								   "total"=>$row->Bog_canti,
+								   "tipo"=>$row->Cat_nomb);
+					$array_[] = $array;
+				}
+				return $array_;
+				$this->mysqli->free_result($result); 
+			}else{
+				return null;
+			}	
+		}else{
+			return null;
+		}	
+	}
+
+	public function consulta_ventas($fecha_inicio,$fecha_final){
+		if($this->connect()){
+			$query = 'SELECT OC.Ord_Prod_cod, P.Prod_nomb, SUM(OC.Ord_cant), OC.Ord_cost
+					FROM Producto P
+					INNER JOIN Orden_Compra OC ON P.Prod_cod = OC.Ord_Prod_cod
+					INNER JOIN Factura F ON F.Fact_cod = OC.Ord_Fact_cod
+					WHERE Fact_fecha between "'.$fecha_inicio.'" AND "'.$fecha_final.'"
+					GROUP BY 1';
+			$result = $this->mysqli->query($query);
+			if($result->num_rows > 0){
+				while($row = $result->fetch_array(MYSQLI_NUM)){
+					$array = array("codigo"=>$row[0],
+								   "nombre"=>$row[1],
+								   "cantidad"=>$row[2],
+								   "costo"=>$row[3]);
+					$array_[] = $array;
+				}
+				return $array_;
+				$this->mysqli->free_result($result); 
+			}else{
+				return null;
+			}	
+		}else{
+			return null;
+		}	
+	}
+
+	// devuelve la cantidad de facturas sin concretar de quienes no cancelaron la factura
+	public function consulta_facturas_sin_concretar(){
+		if($this->connect()){
+			$query = 'SELECT Count(*)
+				  	  FROM Factura
+				      WHERE Fact_Cancelado = 2
+				      AND Fact_fecha - DATE_FORMAT( CURDATE( ) ,"%d%m%Y") > 7';
+		     $result = $this->mysqli->query($query);
+			if($result->num_rows > 0){
+				$row = $result->fetch_array(MYSQLI_NUM);
+				$array = array("cantidad"=>$row[0]);
+				return $array;
+			}else{
+				return null;
+			}
+		}else{
+			return null;
+		}
+	}
+
+	public function consulta_facturas_concretadas_anual($ano){
+		if($this->connect()){
+			$query = 'SELECT Count(*)
+				  	  FROM Factura
+				      WHERE Fact_Cancelado = 1
+				      AND Fact_fecha LIKE "____'.$ano.'"';
+		     $result = $this->mysqli->query($query);
+			if($result->num_rows > 0){
+				$row = $result->fetch_array(MYSQLI_NUM);
+				$array = array("cantidad"=>$row[0]);
+				return $array;
+			}else{
+				return null;
+			}
+		}else{
+			return null;
+		}
+	}
+
+	public function cantidad_facturas_concretadas_usuario($id,$cancelado){
+		if($this->connect()){
+			$query = 'SELECT Count(*)
+				  	  FROM Factura
+				      WHERE Fact_Cancelado ='.$cancelado.'
+				      AND Fact_cod_client ='.$id;
+		     $result = $this->mysqli->query($query);
+			if($result->num_rows > 0){
+				$row = $result->fetch_array(MYSQLI_NUM);
+				$array = array("cantidad"=>$row[0]);
+				return $array;
+			}else{
+				return null;
+			}
+		}else{
+			return null;
+		}
+	}
+
+
+
+
+
+	public function consulta_facturas_concretadas(){
+		if($this->connect()){
+			$query = 'SELECT Count(*)
+				  	  FROM Factura
+				      WHERE Fact_Cancelado = 1';
+		     $result = $this->mysqli->query($query);
+			if($result->num_rows > 0){
+				$row = $result->fetch_array(MYSQLI_NUM);
+				$array = array("cantidad"=>$row[0]);
+				return $array;
+			}else{
+				return null;
+			}
+		}else{
+			return null;
+		}
+	}
+
+	public function consulta_facturas_falta_concretar(){
+		if($this->connect()){
+			$query = 'SELECT Count(*)
+				  	  FROM Factura
+				      WHERE Fact_Cancelado = 2
+				      AND Fact_fecha - DATE_FORMAT( CURDATE( ) ,"%d%m%Y") < 7';
+		     $result = $this->mysqli->query($query);
+			if($result->num_rows > 0){
+				$row = $result->fetch_array(MYSQLI_NUM);
+				$array = array("cantidad"=>$row[0]);
+				return $array;
+			}else{
+				return null;
+			}
+		}else{
+			return null;
+		}
+	}
+
+	// consulta la cantidad mensual de facturas sin concretar compra
+	public function consulta_mes_facturas_falta_concretar($mes,$anual){
+		if($this->connect()){
+			$query = 'SELECT Count(*)
+				  	  FROM Factura
+				      WHERE Fact_Cancelado = 2
+				      AND Fact_fecha LIKE "__%'.$mes.'____"
+				      AND Fact_fecha LIKE "____'.$anual.'"';
+		     $result = $this->mysqli->query($query);
+			if($result->num_rows > 0){
+				$row = $result->fetch_array(MYSQLI_NUM);
+				$array = array("cantidad"=>$row[0]);
+				return $array;
+			}else{
+				return null;
+			}
+		}else{
+			return null;
+		}
+	}
+
+
+
+
+	public function consulta_preguntas($cod_product){
+		if($this->connect()){
+			$query = 'SELECT Com_id,Com_comentario
+					FROM Comentarios 
+					WHERE Com_id_product ='.$cod_product;
+			$result = $this->mysqli->query($query);
+			if($result->num_rows > 0){
+				while($row = $result->fetch_object()){
+					$array = array("id"=>$row->Com_id,
+								  "comentario"=>$row->Com_comentario);
+					$array_[] = $array;
+				}
+				return $array_;
+				$this->mysqli->free_result($result); 
+			}else{
+				return null;
+			}	
+		}else{
+			return null;
+		}	
+	}
+
+	public function consulta_cod_producto_por_cod_pregunta($cod_product){
+		if($this->connect()){
+			$query = 'SELECT Com_id_product
+					FROM Comentarios 
+					WHERE Com_id ='.$cod_product;
+			$result = $this->mysqli->query($query);
+			if($result->num_rows > 0){
+				$row = $result->fetch_object();
+					$array = array("id"=>$row->Com_id_product);
+				return $array;
+				$this->mysqli->free_result($result); 
+			}else{
+				return null;
+			}	
+		}else{
+			return null;
+		}	
+	}
+	public function consulta_respuesta($cod_pregunta){
+		if($this->connect()){
+			$query = 'SELECT Coment_resp_msg
+					FROM Coment_respuest
+					WHERE Comen_resp_id_preg ='.$cod_pregunta;
+			$result = $this->mysqli->query($query);
+			if($result->num_rows > 0){
+				$row = $result->fetch_object();
+				$array = array("comentario"=>$row->Coment_resp_msg);
+				return $array;
+				$this->mysqli->free_result($result); 
+			}else{
+				return null;
+			}	
+		}else{
+			return null;
+		}	
+	}
+
+	
+	
+
+	public function consulta_pregunta_y_respuesta($cod_pregunta){
+		if($this->connect()){
+			$query = 'SELECT Com_comentario,Coment_resp_msg
+					FROM auditoria_comment Au
+					INNER JOIN Comentarios C ON C.Com_id = Au.audi_com_id_com 
+					INNER JOIN Coment_respuest CR ON CR.Comen_resp_id_preg = Au.audi_com_id_com
+					WHERE audi_com_id_com ='.$cod_pregunta;
+			$result = $this->mysqli->query($query);
+			if($result->num_rows > 0){
+				$row = $result->fetch_object();
+				$array = array("pregunta"=>$row->Com_comentario,
+							   "respuesta"=>$row->Coment_resp_msg);
+				return $array;
+				$this->mysqli->free_result($result); 
+			}else{
+				return null;
+			}	
+		}else{
+			return null;
+		}	
+	}
+
+
+
+	public function cantidad_comentarios($cod_pregunta){
+		if($this->connect()){
+			$query = 'SELECT COUNT(*)
+					FROM Comentarios';
+			$result = $this->mysqli->query($query);
+			if($result->num_rows > 0){
+				$row = $result->fetch_array(MYSQLI_NUM);
+				$array = array("cantidad"=>$row[0]);
+				return $array;
+				$this->mysqli->free_result($result); 
+			}else{
+				return null;
+			}	
+		}else{
+			return null;
+		}	
+	}
+	public function cantidad_comentarios_ciudad(){
+		if($this->connect()){
+			$query = 'SELECT Ciud_nomb, COUNT(CO.Com_id) 
+					  FROM Comentarios CO
+					  INNER JOIN Formulario F ON F.Form_ced = CO.Com_id_client
+					  INNER JOIN Ciudad Ci ON F.Form_cod_ciud = Ci.Ciud_cod
+					  GROUP BY 1';
+			$result = $this->mysqli->query($query);
+			if($result->num_rows > 0){
+				while($row = $result->fetch_array(MYSQLI_NUM)){
+					$array = array("ciudad"=>$row[0],
+					     		   "cantidad"=>$row[1]);
+					$array_[] = $array;
+				}
+				return $array_;
+				$this->mysqli->free_result($result); 
+			}else{
+				return null;
+			}	
+		}else{
+			return null;
+		}	
+	}
+
+	public function cantidad_comentarios_sin_contestar(){
+		if($this->connect()){
+			$query = 'SELECT COUNT(*)
+					FROM auditoria_comment
+					WHERE audi_com_fecha_cont = 0';
+			$result = $this->mysqli->query($query);
+			if($result->num_rows > 0){
+				$row = $result->fetch_array(MYSQLI_NUM);
+				$array = array("cantidad"=>$row[0]);
+				return $array;
+				$this->mysqli->free_result($result); 
+			}else{
+				return null;
+			}	
+		}else{
+			return null;
+		}	
+	}
+
+	public function cantidad_notificaciones_sin_leer_usuario(){
+		if($this->connect()){
+			$query = "SELECT COUNT(*)
+					FROM Notif_resp_usuario
+					WHERE Notif_leido = '0'";
+			$result = $this->mysqli->query($query);
+			if($result->num_rows > 0){
+				$row = $result->fetch_array(MYSQLI_NUM);
+					$array = array("cantidad"=>$row[0]);
+				return $array;
+				$this->mysqli->free_result($result); 
+			}else{
+				return null;
+			}	
+		}else{
+			return null;
+		}	
+	}
+
+
+	public function notificaciones_sin_leer_usuario($cedula){
+		if($this->connect()){
+			$query = 'SELECT Notif_id,Notif_cedu,Notif_fecha,Notif_id_preg
+					FROM Notif_resp_usuario
+					WHERE Notif_leido = 1
+					AND Notif_cedu = '.$cedula;
+			$result = $this->mysqli->query($query);
+			if($result->num_rows > 0){
+				while($row = $result->fetch_object()){
+					$array = array("id"=>$row->Notif_id,
+								   "id_pregunt"=>$row->Notif_id_preg,
+								   "cedu"=>$row->Notif_cedu,
+								   "fecha"=>$row->Notif_fecha);
+					$array_[] = $array;
+				}
+				return $array_;
+				$this->mysqli->free_result($result); 
+			}else{
+				return null;
+			}	
+		}else{
+			return null;
+		}	
+	}
+
+
+	public function consulta_comentarios_por_contestar(){
+		if($this->connect()){
+			$query = 'SELECT audi_com_id_com,audi_com_fecha_publi
+					FROM auditoria_comment
+					WHERE audi_com_fecha_cont = 0';
+			$result = $this->mysqli->query($query);
+			if($result->num_rows > 0){
+				while($row = $result->fetch_object()){
+					$array = array("id"=>$row->audi_com_id_com,
+							  	   "fecha"=>$row->audi_com_fecha_publi);
+					$array_[] = $array;
+				}
+				return $array_;
+				$this->mysqli->free_result($result); 
+			}else{
+				return null;
+			}	
+		}else{
+			return null;
+		}	
+	}
+
+
+	public function consulta_usuario_por_pregunta($codigo){
+		if($this->connect()){
+			$query = 'SELECT Form_nomb,Form_imail
+					FROM Comentarios C
+					INNER JOIN Formulario F ON F.Form_ced = C.Com_id_client
+					WHERE C.Com_id = '.$codigo;
+			$result = $this->mysqli->query($query);
+			if($result->num_rows > 0){
+				while($row = $result->fetch_object()){
+					$array = array("nombre"=>$row->Form_nomb,
+							  	   "email"=>$row->Form_imail);
+				}
+				return $array;
+				$this->mysqli->free_result($result); 
+			}else{
+				return null;
+			}	
+		}else{
+			return null;
+		}	
+	}
+
+
+
+
+	public function cerrar_conexion(){
+		parent::close();
+	}
+	public function sanitize($val){
+        return $this->mysqli->real_escape_string($val);                
+    }   
+}
+
+?>
